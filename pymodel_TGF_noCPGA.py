@@ -136,7 +136,6 @@ class pyCNN(nn.Module):
         # 创新点2：任务驱动的特征融合修正
         # ========================================
         if self.use_task_guided_fusion:
-            # 调用封装好的融合模块（包含门控、融合、任务修正的完整逻辑）
             fused = self.task_guided_fusion(
                 hsi_feat=x1,
                 cpt_feat=cpt_feat,
@@ -146,7 +145,6 @@ class pyCNN(nn.Module):
         else:
             beta = self.fuse_beta if hasattr(self, 'fuse_beta') else 0.5
             fused = x1 + cpt_feat * beta
-        # ========================================
 
         fused_flat = fused.view(fused.size(0), -1)
         out3 = self.out3(fused_flat)

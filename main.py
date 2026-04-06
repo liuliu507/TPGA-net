@@ -3,7 +3,6 @@ from operator import truediv
 import torch.nn.functional as F
 import numpy as np
 import random
-import math
 import time
 import torch
 import torch.nn as nn
@@ -52,7 +51,7 @@ os.makedirs(RESULTS_DIR, exist_ok=True)
 
 def create_experiment_folder(dataset_name, train_num):
     """为当前实验创建文件夹"""
-    folder_name = f"57_{dataset_name}_updateCPGA_noTGF"
+    folder_name = f"67_{dataset_name}_updateCPGA_noTGF"
     folder_path = os.path.join(RESULTS_DIR, folder_name)
     os.makedirs(folder_path, exist_ok=True)
     return folder_path
@@ -567,9 +566,6 @@ def train(train_loader, epochs, Classes, NC, device):
 
     print('Finished Training')
     return cnn
-
-
-
 
 
 

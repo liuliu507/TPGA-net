@@ -60,6 +60,9 @@ class pyCNN(nn.Module):
         self.proj_x1 = nn.Conv2d(FM * 4, cpt_embed, 1)
         self.proj_x2 = nn.Conv2d(FM * 4, cpt_embed, 1)
         self.ln_x1 = nn.LayerNorm(cpt_embed)
+        # ========================================
+        # 创新点1：类别原型引导注意力
+        # ========================================
         self.cpt_block = CPGA(embed_dims=cpt_embed,
                                   num_heads=4,
                                   num_classes=Classes,
@@ -72,7 +75,7 @@ class pyCNN(nn.Module):
                                   norm_cfg=dict(type='LN', eps=1e-6))
 
         # ========================================
-        # 创新点2：任务驱动的特征融合修正（借鉴CRFM思想）
+        # 创新点2：任务驱动的特征融合修正
         # ========================================
         if self.use_task_guided_fusion:
             self.task_guided_fusion = TaskGuidedFusion(
@@ -119,11 +122,7 @@ class pyCNN(nn.Module):
         outs = self.cpt_block(x1p_norm, x2p)
         cpt_feat = outs['out']
 
-        # ========================================
-        # 创新点2：任务驱动的特征融合修正
-        # ========================================
         if self.use_task_guided_fusion:
-            # 调用封装好的融合模块（包含门控、融合、任务修正的完整逻辑）
             fused = self.task_guided_fusion(
                 hsi_feat=x1,
                 cpt_feat=cpt_feat,
@@ -133,7 +132,6 @@ class pyCNN(nn.Module):
         else:
             beta = self.fuse_beta if hasattr(self, 'fuse_beta') else 0.5
             fused = x1 + cpt_feat * beta
-        # ========================================
 
         fused_flat = fused.view(fused.size(0), -1)
         out3 = self.out3(fused_flat)

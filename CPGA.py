@@ -14,8 +14,8 @@ class CPGA(nn.Module):
                  mlp_ratio=4, use_memory=False, init_memory=None, norm_cfg=None, init_cfg=None):
         super(CPGA, self).__init__()
 
-        _,self.norm_low = cnn.build_norm_layer(norm_cfg, num_features=embed_dims)
-        _,self.norm_high = cnn.build_norm_layer(norm_cfg, num_features=embed_dims)
+        _,self.norm_hsi = cnn.build_norm_layer(norm_cfg, num_features=embed_dims)
+        _,self.norm_lidar = cnn.build_norm_layer(norm_cfg, num_features=embed_dims)
         self.cross_attn = CFTransform(embed_dims, num_heads, num_classes, attn_drop_rate,
                                       drop_rate, qkv_bias, use_memory=use_memory, init_memory=init_memory)
 
@@ -29,13 +29,13 @@ class CPGA(nn.Module):
             nn.Conv2d(ffn_channels, embed_dims, 1, bias=True),
             nn.Dropout(drop_rate))
 
-    def forward(self, low, high, momentum=0.1):
+    def forward(self, hsi, lidar, momentum=0.1):
         # LayerNorm 需要输入形状为 (B, H, W, C)，所以先 permute 再 permute 回来
-        query = self.norm_low(low.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
-        key_value = self.norm_high(high.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+        query = self.norm_hsi(hsi.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
+        key_value = self.norm_lidar(lidar.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         outs = self.cross_attn(query, key_value, momentum)
 
-        out = outs.pop('out') + low
+        out = outs.pop('out') + hsi
         out = self.mlp(self.norm_mlp(out.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)) + out
         outs.update({'out': out})
         return outs
@@ -123,7 +123,7 @@ class CFEmbedding(BaseModule):
         self.mask_learner = nn.Sequential(
             nn.Conv2d(embed_dims, embed_dims, 1, groups=num_groups, bias=False),
             nn.Conv2d(embed_dims, num_classes, 1, bias=False))
-        self.align_conv = nn.Conv2d(embed_dims, embed_dims, 1, groups=num_groups, bias=False)
+        self.feature_learner = nn.Conv2d(embed_dims, embed_dims, 1, groups=num_groups, bias=False)
         self.cf_embed = nn.Linear(embed_dims, embed_dims * 2, bias=kv_bias)
 
     @torch.no_grad()
@@ -139,9 +139,9 @@ class CFEmbedding(BaseModule):
         mask = mask.reshape(mask.size(0), mask.size(1), -1)  # B x L x N
         mask = F.softmax(mask, dim=-1)
 
-        x = self.align_conv(x)
-        x = x.reshape(x.size(0), x.size(1), -1)  # B x C x N
-        cf_feat = mask @ x.transpose(-2, -1)  # category feature: B x L x C
+        feature = self.feature_learner(x)
+        feature = feature.reshape(feature.size(0), feature.size(1), -1)  # B x C x N
+        cf_feat = mask @ feature.transpose(-2, -1)  # category feature: B x L x C
 
         if hasattr(self, 'memory'):
             memory = self.memory.expand(cf_feat.size(0), -1, -1)

@@ -84,7 +84,7 @@ class pyCNN(nn.Module):
             print(f"Warning: HSI shape mismatch! Got {x1.shape}, expected [batch,30,h,w]")
         if x2.dim() != 4 or x2.size(1) != 1:
             print(f"Warning: LiDAR shape mismatch! Got {x2.shape}, expected [batch,1,h,w]")
-            x2 = x2.unsqueeze(1)  # 自动添加通道维度
+            x2 = x2.unsqueeze(1)
 
         x1 = self.conv1(x1)
         x2 = self.conv4(x2)
